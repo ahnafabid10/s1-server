@@ -6,9 +6,10 @@ import { postService } from "./post.service";
 
 const createPost = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user?.id as string;
+  const userRole = req.user?.role as string;
   const payload = req.body;
 
-  const result = await postService.createPostInDB(userId, payload);
+  const result = await postService.createPostInDB(userId, userRole, payload);
 
   sendResponse(res, {
     success: true,
@@ -19,7 +20,8 @@ const createPost = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllPosts = catchAsync(async (req: Request, res: Response) => {
-  const result = await postService.getAllPostsFromDB();
+  const query = req.query as { admin?: string; status?: string };
+  const result = await postService.getAllPostsFromDB(query);
 
   sendResponse(res, {
     success: true,

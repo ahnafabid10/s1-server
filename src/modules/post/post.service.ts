@@ -1,10 +1,19 @@
 import { prisma } from "../../lib/prisma";
 import { ICreatePostInput, IUpdatePostInput } from "./post.interface";
 
-const createPostInDB = async (authorId: string, payload: ICreatePostInput) => {
+const createPostInDB = async (
+  authorId: string,
+  userRole: string | undefined,
+  payload: ICreatePostInput
+) => {
+  // Regular user posts always default to PENDING. Admins can optionally set status if provided.
+  const postStatus = userRole === "ADMIN" && payload.status ? payload.status : "PENDING";
+
   const post = await prisma.post.create({
     data: {
-      ...payload,
+      content: payload.content,
+      websiteUrl: payload.websiteUrl || null,
+      status: postStatus,
       authorId,
     },
     include: {
@@ -23,8 +32,20 @@ const createPostInDB = async (authorId: string, payload: ICreatePostInput) => {
   return post;
 };
 
-const getAllPostsFromDB = async () => {
+const getAllPostsFromDB = async (query?: { admin?: string; status?: string }) => {
+  const where: any = {};
+
+  if (query?.admin === "true") {
+    if (query?.status && query.status.toLowerCase() !== "all") {
+      where.status = query.status.toUpperCase();
+    }
+  } else {
+    // Public feed: strictly show ONLY approved (PUBLISHED) posts!
+    where.status = "PUBLISHED";
+  }
+
   const posts = await prisma.post.findMany({
+    where,
     include: {
       author: {
         select: {
