@@ -1,0 +1,22 @@
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ActiveStatus {
+  ACTIVE
+  BLOCKED
+}
+
+enum PostStatus {
+  PUBLISHED
+  DRAFT
+  PENDING
+  ARCHIVED
+}
+
+enum CommentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
