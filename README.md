@@ -1,6 +1,6 @@
 # s1-server
 
-A modern, production-ready, modular REST API server for the `s1` content management platform built with **Node.js**, **Express 5**, **Prisma ORM (PostgreSQL)**, and **TypeScript**.
+A lean, production-ready, modular REST API server tailored specifically for the `s1` content management platform built with **Node.js**, **Express 5**, **Prisma ORM (PostgreSQL)**, and **TypeScript**.
 
 ---
 
@@ -16,9 +16,8 @@ A modern, production-ready, modular REST API server for the `s1` content managem
 * **Content Management (s1 Frontend Compatible)**:
   * Public feed with status filtering, searching, and pagination.
   * User-specific "My Posts" query.
-  * Admin moderation: approve/publish, draft, pending, reject, and delete posts.
+  * Admin moderation: approve/publish, draft, pending, and delete posts.
   * Admin analytics & statistics (total posts, status breakdown, user counts).
-* **Comment System**: Nested comments linked to posts and authors.
 * **Error Handling**: Global centralized error handler with Prisma-specific error parsing.
 
 ---
@@ -28,7 +27,11 @@ A modern, production-ready, modular REST API server for the `s1` content managem
 ```
 s1-server/
 ├── prisma/
-│   └── schema.prisma              # Database schema & models
+│   └── schema/                    # Modular Prisma Schema
+│       ├── schema.prisma          # Datasource & Generator
+│       ├── enum.prisma            # Enums (Role, ActiveStatus, PostStatus)
+│       ├── user.prisma            # User Model
+│       └── post.prisma            # Post Model
 ├── src/
 │   ├── config/                    # Environment variables
 │   ├── lib/                       # Prisma client instance
@@ -43,8 +46,7 @@ s1-server/
 │   ├── modules/
 │   │   ├── auth/                  # Register, Login, Refresh, Me, Logout
 │   │   ├── user/                  # User profile & status management
-│   │   ├── post/                  # Post CRUD, moderation, search, stats
-│   │   └── comment/               # Post comments
+│   │   └── post/                  # Post CRUD, moderation, search, stats
 │   ├── app.ts                     # Express app configuration
 │   └── server.ts                  # Server entry point
 ├── .env.example
@@ -106,7 +108,7 @@ npm run dev
 | `GET` | `/api/posts/my-posts` | Authenticated | Get current user's posts |
 | `GET` | `/api/posts/admin/all` | Admin | Get all posts with status/date filters |
 | `GET` | `/api/posts/admin/stats` | Admin | Get post status counts & user statistics |
-| `GET` | `/api/posts/:id` | Public | Get single post details & comments |
+| `GET` | `/api/posts/:id` | Public | Get single post details |
 | `PATCH` | `/api/posts/:id` | Author / Admin | Update post content & status |
 | `PATCH` | `/api/posts/:id/status` | Admin | Moderate post status |
 | `DELETE` | `/api/posts/:id` | Author / Admin | Delete post |
@@ -120,11 +122,3 @@ npm run dev
 | `GET` | `/api/users/:id` | Authenticated | Get user by ID |
 | `PATCH` | `/api/users/:id/status` | Admin | Toggle user status (`ACTIVE` / `BLOCKED`) |
 | `PATCH` | `/api/users/:id/role` | Admin | Change user role (`USER` / `ADMIN`) |
-
-### Comments (`/api/comments`)
-| Method | Endpoint | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/comments` | Authenticated | Create comment on post |
-| `GET` | `/api/comments/post/:postId` | Public | Get all comments for a post |
-| `PATCH` | `/api/comments/:id` | Author / Admin | Update comment content |
-| `DELETE` | `/api/comments/:id` | Author / Admin | Delete comment |

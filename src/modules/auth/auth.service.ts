@@ -6,7 +6,7 @@ import { IAuthResponse, ILoginUser, IRegisterUser } from "./auth.interface";
 import { JwtPayload } from "jsonwebtoken";
 
 const registerUser = async (payload: IRegisterUser): Promise<IAuthResponse> => {
-  const { name, email, password, role, profilePhoto, bio } = payload;
+  const { name, email, password, role, profilePhoto } = payload;
 
   const existingUser = await prisma.user.findUnique({
     where: { email: email.toLowerCase().trim() },
@@ -24,15 +24,7 @@ const registerUser = async (payload: IRegisterUser): Promise<IAuthResponse> => {
       email: email.toLowerCase().trim(),
       password: hashedPassword,
       role: role || "USER",
-      profile: {
-        create: {
-          profilePhoto: profilePhoto || null,
-          bio: bio || null,
-        },
-      },
-    },
-    include: {
-      profile: true,
+      profilePhoto: profilePhoto || null,
     },
   });
 
@@ -63,7 +55,7 @@ const registerUser = async (payload: IRegisterUser): Promise<IAuthResponse> => {
       name: newUser.name,
       email: newUser.email,
       role: newUser.role,
-      profilePhoto: newUser.profile?.profilePhoto,
+      profilePhoto: newUser.profilePhoto,
     },
   };
 };
@@ -73,7 +65,6 @@ const loginUser = async (payload: ILoginUser): Promise<IAuthResponse> => {
 
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase().trim() },
-    include: { profile: true },
   });
 
   if (!user) {
@@ -116,7 +107,7 @@ const loginUser = async (payload: ILoginUser): Promise<IAuthResponse> => {
       name: user.name,
       email: user.email,
       role: user.role,
-      profilePhoto: user.profile?.profilePhoto,
+      profilePhoto: user.profilePhoto,
     },
   };
 };
@@ -170,9 +161,9 @@ const getMe = async (userId: string) => {
       email: true,
       role: true,
       activeStatus: true,
+      profilePhoto: true,
       createdAt: true,
       updatedAt: true,
-      profile: true,
     },
   });
 

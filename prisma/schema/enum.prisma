@@ -12,11 +12,5 @@ enum PostStatus {
   PUBLISHED
   DRAFT
   PENDING
-  ARCHIVED
-}
-
-enum CommentStatus {
-  PENDING
-  APPROVED
   REJECTED
 }

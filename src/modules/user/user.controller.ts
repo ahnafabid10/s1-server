@@ -4,89 +4,43 @@ import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { userService } from "./user.service";
 
-const getAllUsers = catchAsync(async (req: Request, res: Response) => {
-  const { searchTerm, role, activeStatus, page, limit } = req.query;
-
-  const result = await userService.getAllUsersFromDB(
-    {
-      searchTerm: searchTerm as string,
-      role: role as any,
-      activeStatus: activeStatus as any,
-    },
-    {
-      page: page ? Number(page) : undefined,
-      limit: limit ? Number(limit) : undefined,
-    }
-  );
+const registerUser = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.registerUserIntoDB(req.body);
 
   sendResponse(res, {
-    statusCode: httpStatus.OK,
     success: true,
-    message: "Users fetched successfully",
-    meta: result.meta,
-    data: result.data,
+    statusCode: httpStatus.CREATED,
+    message: "User registered successfully",
+    data: result,
   });
 });
 
-const getUserById = catchAsync(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const user = await userService.getUserByIdFromDB(id as string);
-
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: "User fetched successfully",
-    data: user,
-  });
-});
-
-const updateProfile = catchAsync(async (req: Request, res: Response) => {
+const getMyProfile = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user?.id as string;
-  const updatedUser = await userService.updateProfileInDB(userId, req.body);
+  const result = await userService.getMyProfileFromDB(userId);
 
   sendResponse(res, {
-    statusCode: httpStatus.OK,
     success: true,
-    message: "Profile updated successfully",
-    data: updatedUser,
+    statusCode: httpStatus.OK,
+    message: "User profile retrieved successfully",
+    data: result,
   });
 });
 
-const updateUserStatus = catchAsync(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { activeStatus } = req.body;
-
-  const updatedUser = await userService.updateUserStatusInDB(
-    id as string,
-    activeStatus
-  );
+const updateMyProfile = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id as string;
+  const result = await userService.updateMyProfileInDB(userId, req.body);
 
   sendResponse(res, {
-    statusCode: httpStatus.OK,
     success: true,
-    message: `User status updated to ${activeStatus}`,
-    data: updatedUser,
-  });
-});
-
-const updateUserRole = catchAsync(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { role } = req.body;
-
-  const updatedUser = await userService.updateUserRoleInDB(id as string, role);
-
-  sendResponse(res, {
     statusCode: httpStatus.OK,
-    success: true,
-    message: `User role updated to ${role}`,
-    data: updatedUser,
+    message: "User profile updated successfully",
+    data: result,
   });
 });
 
 export const userController = {
-  getAllUsers,
-  getUserById,
-  updateProfile,
-  updateUserStatus,
-  updateUserRole,
+  registerUser,
+  getMyProfile,
+  updateMyProfile,
 };

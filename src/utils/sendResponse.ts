@@ -1,26 +1,25 @@
 import { Response } from "express";
 
-export interface IMeta {
+type TMeta = {
   page: number;
   limit: number;
   total: number;
-  totalPage?: number;
-}
+};
 
-export interface IApiResponse<T> {
-  statusCode: number;
+type TResponseData<T> = {
   success: boolean;
-  message?: string;
-  meta?: IMeta;
+  statusCode: number;
+  message: string;
   data: T;
-}
+  meta?: TMeta;
+};
 
-export const sendResponse = <T>(res: Response, responseData: IApiResponse<T>): void => {
-  res.status(responseData.statusCode).json({
-    success: responseData.success,
-    statusCode: responseData.statusCode,
-    message: responseData.message || "Operation successful",
-    meta: responseData.meta,
-    data: responseData.data,
+export const sendResponse = <T>(res: Response, data: TResponseData<T>) => {
+  res.status(data.statusCode).json({
+    success: data.success,
+    statusCode: data.statusCode,
+    message: data.message,
+    data: data.data,
+    meta: data.meta,
   });
 };

@@ -1,15 +1,12 @@
-import express from "express";
+import { Router } from "express";
 import { userController } from "./user.controller";
 import { auth } from "../../middlewares/auth";
 import { Role } from "@prisma/client";
 
-const router = express.Router();
+const router = Router();
 
-router.get("/", auth(Role.ADMIN), userController.getAllUsers);
-router.get("/profile", auth(), userController.updateProfile);
-router.patch("/profile", auth(), userController.updateProfile);
-router.get("/:id", auth(), userController.getUserById);
-router.patch("/:id/status", auth(Role.ADMIN), userController.updateUserStatus);
-router.patch("/:id/role", auth(Role.ADMIN), userController.updateUserRole);
+router.post("/register", userController.registerUser);
+router.get("/me", auth(Role.ADMIN, Role.USER), userController.getMyProfile);
+router.put("/my-profile", auth(Role.ADMIN, Role.USER), userController.updateMyProfile);
 
 export const userRoutes = router;

@@ -1,18 +1,18 @@
 import { NextFunction, Request, Response } from "express";
 import { Role } from "@prisma/client";
-import { JwtPayload } from "jsonwebtoken";
-import config from "../config";
-import { prisma } from "../lib/prisma";
+import { catchAsync } from "../utils/catchAsync";
 import { jwtUtils } from "../utils/jwt";
-import httpStatus from "http-status";
+import config from "../config";
+import { JwtPayload } from "jsonwebtoken";
+import { prisma } from "../lib/prisma";
 
 declare global {
   namespace Express {
     interface Request {
       user?: {
-        id: string;
-        name: string;
         email: string;
+        name: string;
+        id: string;
         role: Role;
       };
     }
@@ -20,90 +20,57 @@ declare global {
 }
 
 export const auth = (...requiredRoles: Role[]) => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      // 1. Extract token from cookie or Authorization header
-      let token = req.cookies?.accessToken;
+  return catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+    const token = req.cookies.accessToken
+      ? req.cookies.accessToken
+      : req.headers.authorization?.startsWith("Bearer ")
+      ? req.headers.authorization?.split(" ")[1]
+      : req.headers.authorization;
 
-      if (!token && req.headers.authorization) {
-        if (req.headers.authorization.startsWith("Bearer ")) {
-          token = req.headers.authorization.split(" ")[1];
-        } else {
-          token = req.headers.authorization;
-        }
-      }
-
-      if (!token) {
-        res.status(httpStatus.UNAUTHORIZED).json({
-          success: false,
-          statusCode: httpStatus.UNAUTHORIZED,
-          message: "You are not authenticated. Please log in to gain access.",
-        });
-        return;
-      }
-
-      // 2. Verify token
-      const verification = jwtUtils.verifyToken(token, config.jwt.access_secret);
-      if (!verification.success || !verification.data) {
-        res.status(httpStatus.UNAUTHORIZED).json({
-          success: false,
-          statusCode: httpStatus.UNAUTHORIZED,
-          message: verification.message || "Invalid access token. Please log in again.",
-        });
-        return;
-      }
-
-      const decoded = verification.data as JwtPayload & {
-        id: string;
-        name: string;
-        email: string;
-        role: Role;
-      };
-
-      // 3. Role authorization check
-      if (requiredRoles.length > 0 && !requiredRoles.includes(decoded.role)) {
-        res.status(httpStatus.FORBIDDEN).json({
-          success: false,
-          statusCode: httpStatus.FORBIDDEN,
-          message: "Forbidden: You do not have permission to access this resource.",
-        });
-        return;
-      }
-
-      // 4. Verify user exists in database & is active
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.id },
-      });
-
-      if (!user) {
-        res.status(httpStatus.UNAUTHORIZED).json({
-          success: false,
-          statusCode: httpStatus.UNAUTHORIZED,
-          message: "User associated with this token no longer exists.",
-        });
-        return;
-      }
-
-      if (user.activeStatus === "BLOCKED") {
-        res.status(httpStatus.FORBIDDEN).json({
-          success: false,
-          statusCode: httpStatus.FORBIDDEN,
-          message: "Your account is blocked. Please contact system support.",
-        });
-        return;
-      }
-
-      // 5. Attach user to request
-      req.user = {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      };
-
-      next();
-    } catch (error) {
-      next(error);
+    if (!token) {
+      throw new Error("You are not logged in. please log in to get access.");
     }
-  };
+
+    const verifiedToken = jwtUtils.verifyToken(token, config.jwt.access_secret);
+
+    if (!verifiedToken.success) {
+      throw new Error(
+        verifiedToken.message || "Invalid token. Please log in again."
+      );
+    }
+
+    const { email, name, id, role } = verifiedToken.data as JwtPayload;
+
+    if (requiredRoles.length && !requiredRoles.includes(role)) {
+      throw new Error("You do not have permission to access this resource.");
+    }
+
+    const user = await prisma.user.findUnique({
+      where: {
+        id,
+        email,
+        name,
+        role,
+      },
+    });
+
+    if (!user) {
+      throw new Error("User not found. Please Log in again");
+    }
+
+    if (user.activeStatus === "BLOCKED") {
+      throw new Error(
+        "Your account has been blocked. Please contact support."
+      );
+    }
+
+    req.user = {
+      email,
+      name,
+      id,
+      role,
+    };
+
+    next();
+  });
 };

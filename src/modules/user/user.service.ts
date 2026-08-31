@@ -1,121 +1,78 @@
-import { ActiveStatus, Prisma, Role } from "@prisma/client";
+import bcrypt from "bcrypt";
+import config from "../../config";
 import { prisma } from "../../lib/prisma";
-import { IUpdateProfile, IUserFilterOptions } from "./user.interface";
+import { RegisterUserPayload } from "./user.interface";
 
-const getAllUsersFromDB = async (
-  filters: IUserFilterOptions,
-  options: { page?: number; limit?: number }
-) => {
-  const { searchTerm, role, activeStatus } = filters;
-  const page = Number(options.page) > 0 ? Number(options.page) : 1;
-  const limit = Number(options.limit) > 0 ? Number(options.limit) : 10;
-  const skip = (page - 1) * limit;
+const registerUserIntoDB = async (payload: RegisterUserPayload) => {
+  const { name, email, password, role, profilePhoto } = payload;
+  const isUserExist = await prisma.user.findUnique({
+    where: {
+      email,
+    },
+  });
 
-  const andConditions: Prisma.UserWhereInput[] = [];
-
-  if (searchTerm) {
-    andConditions.push({
-      OR: [
-        { name: { contains: searchTerm, mode: "insensitive" } },
-        { email: { contains: searchTerm, mode: "insensitive" } },
-      ],
-    });
+  if (isUserExist) {
+    throw new Error("User already exists");
   }
 
-  if (role) {
-    andConditions.push({ role });
-  }
+  const hashedPassword = await bcrypt.hash(
+    password,
+    Number(config.bcrypt_salt_rounds)
+  );
 
-  if (activeStatus) {
-    andConditions.push({ activeStatus });
-  }
-
-  const whereConditions: Prisma.UserWhereInput =
-    andConditions.length > 0 ? { AND: andConditions } : {};
-
-  const users = await prisma.user.findMany({
-    where: whereConditions,
-    skip,
-    take: limit,
-    orderBy: { createdAt: "desc" },
+  const createdUser = await prisma.user.create({
+    data: {
+      name,
+      email,
+      password: hashedPassword,
+      role: role || "USER",
+      profilePhoto: profilePhoto || null,
+    },
     select: {
       id: true,
       name: true,
       email: true,
       role: true,
       activeStatus: true,
+      profilePhoto: true,
       createdAt: true,
       updatedAt: true,
-      profile: true,
-      _count: {
-        select: {
-          posts: true,
-          comments: true,
-        },
-      },
     },
   });
 
-  const total = await prisma.user.count({ where: whereConditions });
-
-  return {
-    meta: {
-      page,
-      limit,
-      total,
-      totalPage: Math.ceil(total / limit),
-    },
-    data: users,
-  };
+  return createdUser;
 };
 
-const getUserByIdFromDB = async (id: string) => {
+const getMyProfileFromDB = async (userId: string) => {
   const user = await prisma.user.findUnique({
-    where: { id },
+    where: {
+      id: userId,
+    },
     select: {
       id: true,
       name: true,
       email: true,
       role: true,
       activeStatus: true,
+      profilePhoto: true,
       createdAt: true,
       updatedAt: true,
-      profile: true,
-      _count: {
-        select: {
-          posts: true,
-          comments: true,
-        },
-      },
     },
   });
-
-  if (!user) {
-    throw new Error("User not found.");
-  }
-
   return user;
 };
 
-const updateProfileInDB = async (userId: string, payload: IUpdateProfile) => {
-  const { name, profilePhoto, bio } = payload;
+const updateMyProfileInDB = async (userId: string, payload: any) => {
+  const { name, email, profilePhoto } = payload;
 
   const updatedUser = await prisma.user.update({
-    where: { id: userId },
+    where: {
+      id: userId,
+    },
     data: {
-      ...(name && { name: name.trim() }),
-      profile: {
-        upsert: {
-          create: {
-            profilePhoto: profilePhoto || null,
-            bio: bio || null,
-          },
-          update: {
-            ...(profilePhoto !== undefined && { profilePhoto }),
-            ...(bio !== undefined && { bio }),
-          },
-        },
-      },
+      ...(name && { name }),
+      ...(email && { email }),
+      ...(profilePhoto !== undefined && { profilePhoto }),
     },
     select: {
       id: true,
@@ -123,7 +80,7 @@ const updateProfileInDB = async (userId: string, payload: IUpdateProfile) => {
       email: true,
       role: true,
       activeStatus: true,
-      profile: true,
+      profilePhoto: true,
       updatedAt: true,
     },
   });
@@ -131,44 +88,8 @@ const updateProfileInDB = async (userId: string, payload: IUpdateProfile) => {
   return updatedUser;
 };
 
-const updateUserStatusInDB = async (userId: string, activeStatus: ActiveStatus) => {
-  const user = await prisma.user.update({
-    where: { id: userId },
-    data: { activeStatus },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      activeStatus: true,
-      updatedAt: true,
-    },
-  });
-
-  return user;
-};
-
-const updateUserRoleInDB = async (userId: string, role: Role) => {
-  const user = await prisma.user.update({
-    where: { id: userId },
-    data: { role },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      activeStatus: true,
-      updatedAt: true,
-    },
-  });
-
-  return user;
-};
-
 export const userService = {
-  getAllUsersFromDB,
-  getUserByIdFromDB,
-  updateProfileInDB,
-  updateUserStatusInDB,
-  updateUserRoleInDB,
+  registerUserIntoDB,
+  getMyProfileFromDB,
+  updateMyProfileInDB,
 };

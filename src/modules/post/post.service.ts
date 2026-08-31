@@ -1,19 +1,10 @@
-import { PostStatus, Prisma, Role } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
-import {
-  ICreatePost,
-  IPaginationOptions,
-  IPostFilters,
-  IUpdatePost,
-} from "./post.interface";
+import { ICreatePostInput, IUpdatePostInput } from "./post.interface";
 
-const createPostInDB = async (authorId: string, payload: ICreatePost) => {
-  const { content, status } = payload;
-
+const createPostInDB = async (authorId: string, payload: ICreatePostInput) => {
   const post = await prisma.post.create({
     data: {
-      content: content.trim(),
-      status: status || PostStatus.PUBLISHED,
+      ...payload,
       authorId,
     },
     include: {
@@ -23,11 +14,7 @@ const createPostInDB = async (authorId: string, payload: ICreatePost) => {
           name: true,
           email: true,
           role: true,
-          profile: {
-            select: {
-              profilePhoto: true,
-            },
-          },
+          profilePhoto: true,
         },
       },
     },
@@ -36,38 +23,8 @@ const createPostInDB = async (authorId: string, payload: ICreatePost) => {
   return post;
 };
 
-const getAllPublishedPostsFromDB = async (
-  filters: IPostFilters,
-  options: IPaginationOptions
-) => {
-  const { searchTerm, authorId } = filters;
-  const page = Number(options.page) > 0 ? Number(options.page) : 1;
-  const limit = Number(options.limit) > 0 ? Number(options.limit) : 10;
-  const skip = (page - 1) * limit;
-  const sortBy = options.sortBy || "createdAt";
-  const sortOrder = options.sortOrder || "desc";
-
-  const andConditions: Prisma.PostWhereInput[] = [
-    { status: PostStatus.PUBLISHED },
-  ];
-
-  if (searchTerm) {
-    andConditions.push({
-      content: { contains: searchTerm, mode: "insensitive" },
-    });
-  }
-
-  if (authorId) {
-    andConditions.push({ authorId });
-  }
-
-  const whereConditions: Prisma.PostWhereInput = { AND: andConditions };
-
+const getAllPostsFromDB = async () => {
   const posts = await prisma.post.findMany({
-    where: whereConditions,
-    skip,
-    take: limit,
-    orderBy: { [sortBy]: sortOrder },
     include: {
       author: {
         select: {
@@ -75,65 +32,23 @@ const getAllPublishedPostsFromDB = async (
           name: true,
           email: true,
           role: true,
-          profile: {
-            select: {
-              profilePhoto: true,
-            },
-          },
+          profilePhoto: true,
         },
       },
-      _count: {
-        select: {
-          comments: true,
-        },
-      },
+    },
+    orderBy: {
+      createdAt: "desc",
     },
   });
 
-  const total = await prisma.post.count({ where: whereConditions });
-
-  return {
-    meta: {
-      page,
-      limit,
-      total,
-      totalPage: Math.ceil(total / limit),
-    },
-    data: posts,
-  };
+  return posts;
 };
 
-const getMyPostsFromDB = async (
-  userId: string,
-  filters: IPostFilters,
-  options: IPaginationOptions
-) => {
-  const { searchTerm, status } = filters;
-  const page = Number(options.page) > 0 ? Number(options.page) : 1;
-  const limit = Number(options.limit) > 0 ? Number(options.limit) : 10;
-  const skip = (page - 1) * limit;
-  const sortBy = options.sortBy || "createdAt";
-  const sortOrder = options.sortOrder || "desc";
-
-  const andConditions: Prisma.PostWhereInput[] = [{ authorId: userId }];
-
-  if (searchTerm) {
-    andConditions.push({
-      content: { contains: searchTerm, mode: "insensitive" },
-    });
-  }
-
-  if (status) {
-    andConditions.push({ status });
-  }
-
-  const whereConditions: Prisma.PostWhereInput = { AND: andConditions };
-
+const getMyPostsFromDB = async (authorId: string) => {
   const posts = await prisma.post.findMany({
-    where: whereConditions,
-    skip,
-    take: limit,
-    orderBy: { [sortBy]: sortOrder },
+    where: {
+      authorId,
+    },
     include: {
       author: {
         select: {
@@ -141,82 +56,23 @@ const getMyPostsFromDB = async (
           name: true,
           email: true,
           role: true,
-          profile: {
-            select: {
-              profilePhoto: true,
-            },
-          },
+          profilePhoto: true,
         },
       },
-      _count: {
-        select: {
-          comments: true,
-        },
-      },
+    },
+    orderBy: {
+      createdAt: "desc",
     },
   });
 
-  const total = await prisma.post.count({ where: whereConditions });
-
-  return {
-    meta: {
-      page,
-      limit,
-      total,
-      totalPage: Math.ceil(total / limit),
-    },
-    data: posts,
-  };
+  return posts;
 };
 
-const getAdminAllPostsFromDB = async (
-  filters: IPostFilters,
-  options: IPaginationOptions
-) => {
-  const { searchTerm, status, authorId, startDate, endDate } = filters;
-  const page = Number(options.page) > 0 ? Number(options.page) : 1;
-  const limit = Number(options.limit) > 0 ? Number(options.limit) : 10;
-  const skip = (page - 1) * limit;
-  const sortBy = options.sortBy || "createdAt";
-  const sortOrder = options.sortOrder || "desc";
-
-  const andConditions: Prisma.PostWhereInput[] = [];
-
-  if (searchTerm) {
-    andConditions.push({
-      OR: [
-        { content: { contains: searchTerm, mode: "insensitive" } },
-        { author: { email: { contains: searchTerm, mode: "insensitive" } } },
-        { author: { name: { contains: searchTerm, mode: "insensitive" } } },
-      ],
-    });
-  }
-
-  if (status) {
-    andConditions.push({ status });
-  }
-
-  if (authorId) {
-    andConditions.push({ authorId });
-  }
-
-  if (startDate || endDate) {
-    andConditions.push({
-      createdAt: {
-        ...(startDate && { gte: new Date(startDate) }),
-        ...(endDate && { lte: new Date(endDate) }),
-      },
-    });
-  }
-
-  const whereConditions: Prisma.PostWhereInput =
-    andConditions.length > 0 ? { AND: andConditions } : {};
-
-  const posts = await prisma.post.findMany({
-    where: whereConditions,
-    skip,
-    take: limit,
-    orderBy: { [sortBy]: sortOrder },
+const getSinglePostFromDB = async (id: string) => {
+  const post = await prisma.post.findUnique({
+    where: {
+      id,
+    },
     include: {
       author: {
         select: {
@@ -224,101 +80,11 @@ const getAdminAllPostsFromDB = async (
           name: true,
           email: true,
           role: true,
-          profile: {
-            select: {
-              profilePhoto: true,
-            },
-          },
-        },
-      },
-      _count: {
-        select: {
-          comments: true,
+          profilePhoto: true,
         },
       },
     },
   });
-
-  const total = await prisma.post.count({ where: whereConditions });
-
-  return {
-    meta: {
-      page,
-      limit,
-      total,
-      totalPage: Math.ceil(total / limit),
-    },
-    data: posts,
-  };
-};
-
-const getAdminStatsFromDB = async () => {
-  const [total, published, draft, pending, archived, usersCount] =
-    await Promise.all([
-      prisma.post.count(),
-      prisma.post.count({ where: { status: PostStatus.PUBLISHED } }),
-      prisma.post.count({ where: { status: PostStatus.DRAFT } }),
-      prisma.post.count({ where: { status: PostStatus.PENDING } }),
-      prisma.post.count({ where: { status: PostStatus.ARCHIVED } }),
-      prisma.user.count(),
-    ]);
-
-  return {
-    posts: {
-      total,
-      published,
-      draft,
-      pending,
-      archived,
-    },
-    users: {
-      total: usersCount,
-    },
-  };
-};
-
-const getPostByIdFromDB = async (id: string) => {
-  // Increment view count
-  const post = await prisma.post.update({
-    where: { id },
-    data: { views: { increment: 1 } },
-    include: {
-      author: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          profile: {
-            select: {
-              profilePhoto: true,
-            },
-          },
-        },
-      },
-      comments: {
-        where: { status: "APPROVED" },
-        include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-              profile: {
-                select: {
-                  profilePhoto: true,
-                },
-              },
-            },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-      },
-    },
-  });
-
-  if (!post) {
-    throw new Error("Post not found.");
-  }
 
   return post;
 };
@@ -326,28 +92,24 @@ const getPostByIdFromDB = async (id: string) => {
 const updatePostInDB = async (
   id: string,
   userId: string,
-  userRole: Role,
-  payload: IUpdatePost
+  userRole: string,
+  payload: IUpdatePostInput
 ) => {
-  const existingPost = await prisma.post.findUnique({ where: { id } });
+  const post = await prisma.post.findUnique({
+    where: { id },
+  });
 
-  if (!existingPost) {
-    throw new Error("Post not found.");
+  if (!post) {
+    throw new Error("Post not found");
   }
 
-  // Only the author or an admin can update the post
-  if (existingPost.authorId !== userId && userRole !== Role.ADMIN) {
-    throw new Error("You do not have permission to modify this post.");
+  if (post.authorId !== userId && userRole !== "ADMIN") {
+    throw new Error("You are not authorized to update this post");
   }
-
-  const { content, status } = payload;
 
   const updatedPost = await prisma.post.update({
     where: { id },
-    data: {
-      ...(content && { content: content.trim() }),
-      ...(status && { status }),
-    },
+    data: payload,
     include: {
       author: {
         select: {
@@ -355,6 +117,7 @@ const updatePostInDB = async (
           name: true,
           email: true,
           role: true,
+          profilePhoto: true,
         },
       },
     },
@@ -363,48 +126,51 @@ const updatePostInDB = async (
   return updatedPost;
 };
 
-const updatePostStatusInDB = async (id: string, status: PostStatus) => {
-  const post = await prisma.post.update({
+const deletePostInDB = async (id: string, userId: string, userRole: string) => {
+  const post = await prisma.post.findUnique({
     where: { id },
-    data: { status },
-    include: {
-      author: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-        },
-      },
-    },
   });
 
-  return post;
+  if (!post) {
+    throw new Error("Post not found");
+  }
+
+  if (post.authorId !== userId && userRole !== "ADMIN") {
+    throw new Error("You are not authorized to delete this post");
+  }
+
+  const deletedPost = await prisma.post.delete({
+    where: { id },
+  });
+
+  return deletedPost;
 };
 
-const deletePostFromDB = async (id: string, userId: string, userRole: Role) => {
-  const existingPost = await prisma.post.findUnique({ where: { id } });
+const getPostStatsFromDB = async () => {
+  const [totalPosts, publishedPosts, draftPosts, pendingPosts, totalUsers] =
+    await Promise.all([
+      prisma.post.count(),
+      prisma.post.count({ where: { status: "PUBLISHED" } }),
+      prisma.post.count({ where: { status: "DRAFT" } }),
+      prisma.post.count({ where: { status: "PENDING" } }),
+      prisma.user.count(),
+    ]);
 
-  if (!existingPost) {
-    throw new Error("Post not found.");
-  }
-
-  if (existingPost.authorId !== userId && userRole !== Role.ADMIN) {
-    throw new Error("You do not have permission to delete this post.");
-  }
-
-  const deletedPost = await prisma.post.delete({ where: { id } });
-  return deletedPost;
+  return {
+    totalPosts,
+    publishedPosts,
+    draftPosts,
+    pendingPosts,
+    totalUsers,
+  };
 };
 
 export const postService = {
   createPostInDB,
-  getAllPublishedPostsFromDB,
+  getAllPostsFromDB,
   getMyPostsFromDB,
-  getAdminAllPostsFromDB,
-  getAdminStatsFromDB,
-  getPostByIdFromDB,
+  getSinglePostFromDB,
   updatePostInDB,
-  updatePostStatusInDB,
-  deletePostFromDB,
+  deletePostInDB,
+  getPostStatsFromDB,
 };

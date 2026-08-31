@@ -1,21 +1,16 @@
-import express from "express";
-import { postController } from "./post.controller";
+import { Router } from "express";
 import { auth } from "../../middlewares/auth";
+import { postController } from "./post.controller";
 import { Role } from "@prisma/client";
 
-const router = express.Router();
+const router = Router();
 
-// Specific routes first to prevent :id param collisions
-router.get("/my-posts", auth(), postController.getMyPosts);
-router.get("/admin/stats", auth(Role.ADMIN), postController.getAdminStats);
-router.get("/admin/all", auth(Role.ADMIN), postController.getAdminAllPosts);
-
-// Public / General routes
-router.post("/", auth(), postController.createPost);
-router.get("/", postController.getAllPublishedPosts);
-router.get("/:id", postController.getPostById);
-router.patch("/:id", auth(), postController.updatePost);
-router.patch("/:id/status", auth(Role.ADMIN), postController.updatePostStatus);
-router.delete("/:id", auth(), postController.deletePost);
+router.post("/", auth(Role.ADMIN, Role.USER), postController.createPost);
+router.get("/", postController.getAllPosts);
+router.get("/my-posts", auth(Role.ADMIN, Role.USER), postController.getMyPosts);
+router.get("/stats", postController.getPostStats);
+router.get("/:id", postController.getSinglePost);
+router.patch("/:id", auth(Role.ADMIN, Role.USER), postController.updatePost);
+router.delete("/:id", auth(Role.ADMIN, Role.USER), postController.deletePost);
 
 export const postRoutes = router;

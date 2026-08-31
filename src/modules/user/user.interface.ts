@@ -1,13 +1,9 @@
-import { ActiveStatus, Role } from "@prisma/client";
+import { Role } from "@prisma/client";
 
-export interface IUpdateProfile {
-  name?: string;
-  profilePhoto?: string;
-  bio?: string;
-}
-
-export interface IUserFilterOptions {
-  searchTerm?: string;
+export interface RegisterUserPayload {
+  name: string;
+  email: string;
+  password: string;
   role?: Role;
-  activeStatus?: ActiveStatus;
+  profilePhoto?: string;
 }
