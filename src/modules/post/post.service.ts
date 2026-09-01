@@ -186,6 +186,20 @@ const getPostStatsFromDB = async () => {
   };
 };
 
+const incrementClicksInDB = async (id: string) => {
+  return await prisma.post.update({
+    where: { id },
+    data: { clicks: { increment: 1 } },
+  });
+};
+
+const incrementLovesInDB = async (id: string) => {
+  return await prisma.post.update({
+    where: { id },
+    data: { loves: { increment: 1 } },
+  });
+};
+
 export const postService = {
   createPostInDB,
   getAllPostsFromDB,
@@ -194,4 +208,6 @@ export const postService = {
   updatePostInDB,
   deletePostInDB,
   getPostStatsFromDB,
+  incrementClicksInDB,
+  incrementLovesInDB,
 };

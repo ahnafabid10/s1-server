@@ -97,6 +97,30 @@ const getPostStats = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const incrementClicks = catchAsync(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const result = await postService.incrementClicksInDB(id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Post click count incremented",
+    data: result,
+  });
+});
+
+const incrementLoves = catchAsync(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const result = await postService.incrementLovesInDB(id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Post love count incremented",
+    data: result,
+  });
+});
+
 export const postController = {
   createPost,
   getAllPosts,
@@ -105,4 +129,6 @@ export const postController = {
   deletePost,
   getMyPosts,
   getPostStats,
+  incrementClicks,
+  incrementLoves,
 };
