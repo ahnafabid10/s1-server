@@ -109,14 +109,15 @@ const incrementClicks = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const incrementLoves = catchAsync(async (req: Request, res: Response) => {
+const toggleLove = catchAsync(async (req: Request, res: Response) => {
   const id = req.params.id as string;
-  const result = await postService.incrementLovesInDB(id);
+  const userId = req.user?.id as string;
+  const result = await postService.toggleLoveInDB(id, userId);
 
   sendResponse(res, {
     success: true,
     statusCode: httpStatus.OK,
-    message: "Post love count incremented",
+    message: result.isLoved ? "Post loved successfully" : "Post unloved successfully",
     data: result,
   });
 });
@@ -130,5 +131,5 @@ export const postController = {
   getMyPosts,
   getPostStats,
   incrementClicks,
-  incrementLoves,
+  toggleLove,
 };

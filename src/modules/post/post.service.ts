@@ -56,6 +56,11 @@ const getAllPostsFromDB = async (query?: { admin?: string; status?: string }) =>
           profilePhoto: true,
         },
       },
+      lovesList: {
+        select: {
+          userId: true,
+        },
+      },
     },
     orderBy: {
       createdAt: "desc",
@@ -193,11 +198,50 @@ const incrementClicksInDB = async (id: string) => {
   });
 };
 
-const incrementLovesInDB = async (id: string) => {
-  return await prisma.post.update({
-    where: { id },
-    data: { loves: { increment: 1 } },
+const toggleLoveInDB = async (postId: string, userId: string) => {
+  const post = await prisma.post.findUnique({ where: { id: postId } });
+  if (!post) {
+    throw new Error("Post not found");
+  }
+
+  const existingLove = await prisma.postLove.findUnique({
+    where: {
+      userId_postId: {
+        userId,
+        postId,
+      },
+    },
   });
+
+  if (existingLove) {
+    // User already loved this post -> Toggle off (remove love)
+    await prisma.$transaction([
+      prisma.postLove.delete({
+        where: { id: existingLove.id },
+      }),
+      prisma.post.update({
+        where: { id: postId },
+        data: { loves: { decrement: 1 } },
+      }),
+    ]);
+
+    const updatedPost = await prisma.post.findUnique({ where: { id: postId } });
+    return { isLoved: false, loves: updatedPost?.loves ?? 0 };
+  } else {
+    // Add love react for this user
+    await prisma.$transaction([
+      prisma.postLove.create({
+        data: { userId, postId },
+      }),
+      prisma.post.update({
+        where: { id: postId },
+        data: { loves: { increment: 1 } },
+      }),
+    ]);
+
+    const updatedPost = await prisma.post.findUnique({ where: { id: postId } });
+    return { isLoved: true, loves: updatedPost?.loves ?? 0 };
+  }
 };
 
 export const postService = {
@@ -209,5 +253,5 @@ export const postService = {
   deletePostInDB,
   getPostStatsFromDB,
   incrementClicksInDB,
-  incrementLovesInDB,
+  toggleLoveInDB,
 };
