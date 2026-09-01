@@ -5,9 +5,9 @@ dotenv.config({ path: path.join(process.cwd(), ".env") });
 
 export default {
   env: process.env.NODE_ENV || "development",
-  port: process.env.PORT || 5000,
+  port: process.env.PORT || 5010,
   database_url: process.env.DATABASE_URL,
-  app_url: process.env.APP_URL || "http://localhost:3000",
+  app_url: process.env.APP_URL || "http://localhost:3010",
   bcrypt_salt_rounds: Number(process.env.BCRYPT_SALT_ROUNDS) || 10,
   jwt: {
     access_secret: process.env.JWT_ACCESS_SECRET || "s1_access_secret_super_secure_key_2026",
