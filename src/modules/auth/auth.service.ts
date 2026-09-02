@@ -55,6 +55,7 @@ const registerUser = async (payload: IRegisterUser): Promise<IAuthResponse> => {
       name: newUser.name,
       email: newUser.email,
       role: newUser.role,
+      userType: newUser.userType,
       profilePhoto: newUser.profilePhoto,
     },
   };
@@ -107,6 +108,7 @@ const loginUser = async (payload: ILoginUser): Promise<IAuthResponse> => {
       name: user.name,
       email: user.email,
       role: user.role,
+      userType: user.userType,
       profilePhoto: user.profilePhoto,
     },
   };
@@ -160,6 +162,7 @@ const getMe = async (userId: string) => {
       name: true,
       email: true,
       role: true,
+      userType: true,
       activeStatus: true,
       profilePhoto: true,
       createdAt: true,

@@ -21,3 +21,8 @@ enum PaymentStatus {
   FAILED
 }
 
+enum UserType {
+  REGULAR
+  PREMIUM
+}
+

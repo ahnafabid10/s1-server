@@ -8,11 +8,13 @@ export const catchAsync = (Fn: RequestHandler) => {
     } catch (error) {
       console.error("Error executing request:", error);
 
+      const errorMessage = error instanceof Error ? error.message : "Internal server error";
+
       res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
         success: false,
         status: httpStatus.INTERNAL_SERVER_ERROR,
-        message: "Internal server error",
-        error: error instanceof Error ? error.message : "Unknown error",
+        message: errorMessage,
+        error: errorMessage,
       });
     }
   };

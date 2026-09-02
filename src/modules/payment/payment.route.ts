@@ -22,4 +22,18 @@ router.get(
   paymentController.getPaymentStatus
 );
 
+// User: Get logged-in user's payment history (Protected)
+router.get(
+  "/my-payments",
+  auth(Role.USER, Role.ADMIN),
+  paymentController.getMyPayments
+);
+
+// Admin: Get all paid posts & payment transactions (Protected Admin)
+router.get(
+  "/admin/paid-posts",
+  auth(Role.ADMIN),
+  paymentController.getAdminPaidPosts
+);
+
 export const paymentRoutes = router;

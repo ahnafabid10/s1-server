@@ -3,27 +3,83 @@ import config from "../../config";
 import { polarClient } from "../../lib/polar";
 import { prisma } from "../../lib/prisma";
 import { ICreateCheckoutPayload } from "./payment.interface";
-import { PaymentStatus } from "@prisma/client";
+import { PaymentStatus, UserType } from "@prisma/client";
+
+// Helper function executed when payment is verified COMPLETED
+const processSuccessfulPayment = async (paymentId: string, userId: string, metadata: any) => {
+  // 1. Upgrade user to PREMIUM status
+  await prisma.user.update({
+    where: { id: userId },
+    data: { userType: UserType.PREMIUM },
+  });
+
+  // 2. Create post if content was stored in metadata and post hasn't been created yet
+  if (metadata && metadata.content && !metadata.postId) {
+    const post = await prisma.post.create({
+      data: {
+        content: metadata.content,
+        websiteUrl: metadata.websiteUrl || null,
+        status: "PUBLISHED",
+        authorId: userId,
+      },
+    });
+
+    // Update payment metadata with created postId to prevent duplicate post creation
+    const updatedMetadata = { ...metadata, postId: post.id };
+    await prisma.payment.update({
+      where: { id: paymentId },
+      data: { metadata: updatedMetadata },
+    });
+
+    return post;
+  }
+
+  return null;
+};
 
 const createCheckoutSessionInDB = async (
   userId: string,
   payload: ICreateCheckoutPayload
 ) => {
+  // Fetch user to get logged-in user email
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
   const successUrl =
     payload.successUrl ||
     `${config.app_url}/payment/success?checkout_id={CHECKOUT_ID}`;
 
-  // 1. Request Polar API to create a checkout session
+  const fullMetadata = {
+    userId,
+    content: payload.content || "",
+    websiteUrl: payload.websiteUrl || "",
+    ...payload.metadata,
+  };
+
+  // Polar SDK requires metadata values to strictly be string (min 1 char, max 500 chars), number, or boolean
+  const polarMetadata: Record<string, string | number | boolean> = {
+    userId: String(userId),
+    content: String(payload.content || "").substring(0, 480),
+  };
+
+  if (payload.websiteUrl && payload.websiteUrl.trim().length > 0) {
+    polarMetadata.websiteUrl = payload.websiteUrl.trim().substring(0, 480);
+  }
+
+  // 1. Request Polar API to create a checkout session with pre-filled customer email
   const checkout = await polarClient.checkouts.create({
     products: [payload.productId],
     successUrl: successUrl,
-    metadata: {
-      userId,
-      ...payload.metadata,
-    },
+    customerEmail: user.email ? user.email.trim() : undefined,
+    metadata: polarMetadata,
   });
 
-  // 2. Record initial PENDING payment state in DB
+  // 2. Record initial PENDING payment state in DB with full metadata
   const payment = await prisma.payment.create({
     data: {
       userId,
@@ -32,7 +88,7 @@ const createCheckoutSessionInDB = async (
       amount: checkout.totalAmount !== undefined && checkout.totalAmount !== null ? Number(checkout.totalAmount) : 0,
       currency: checkout.currency || "usd",
       status: PaymentStatus.PENDING,
-      metadata: payload.metadata || {},
+      metadata: fullMetadata,
     },
   });
 
@@ -85,15 +141,14 @@ const handlePolarWebhookInDB = async (
     const totalAmount = data.totalAmount ?? data.total_amount ?? data.amount;
 
     if (checkoutId) {
-      // Find existing payment by checkoutId
       const existingPayment = await prisma.payment.findUnique({
         where: { checkoutId },
       });
 
       if (existingPayment) {
-        // Idempotent update: check if already completed
+        let updatedPayment = existingPayment;
         if (existingPayment.status !== PaymentStatus.COMPLETED) {
-          await prisma.payment.update({
+          updatedPayment = await prisma.payment.update({
             where: { checkoutId },
             data: {
               polarOrderId: orderId,
@@ -102,9 +157,13 @@ const handlePolarWebhookInDB = async (
             },
           });
         }
+        await processSuccessfulPayment(
+          updatedPayment.id,
+          updatedPayment.userId,
+          updatedPayment.metadata || metadata
+        );
       } else if (userId) {
-        // If payment intent wasn't saved prior, create completed payment record
-        await prisma.payment.create({
+        const newPayment = await prisma.payment.create({
           data: {
             userId,
             checkoutId: checkoutId || `order_${orderId}`,
@@ -116,6 +175,7 @@ const handlePolarWebhookInDB = async (
             metadata,
           },
         });
+        await processSuccessfulPayment(newPayment.id, userId, metadata);
       }
     }
   } else if (eventType === "checkout.updated") {
@@ -123,21 +183,18 @@ const handlePolarWebhookInDB = async (
     const status = data.status;
 
     if (checkoutId && status === "succeeded") {
-      await prisma.payment.updateMany({
-        where: {
-          checkoutId,
-          status: { not: PaymentStatus.COMPLETED },
-        },
-        data: {
-          status: PaymentStatus.COMPLETED,
-        },
-      });
+      const payments = await prisma.payment.findMany({ where: { checkoutId } });
+      for (const p of payments) {
+        const updated = await prisma.payment.update({
+          where: { id: p.id },
+          data: { status: PaymentStatus.COMPLETED },
+        });
+        await processSuccessfulPayment(updated.id, updated.userId, updated.metadata || {});
+      }
     } else if (checkoutId && (status === "failed" || status === "expired")) {
       await prisma.payment.updateMany({
         where: { checkoutId },
-        data: {
-          status: PaymentStatus.FAILED,
-        },
+        data: { status: PaymentStatus.FAILED },
       });
     }
   }
@@ -157,11 +214,87 @@ const getPaymentStatusFromDB = async (userId: string, checkoutId: string) => {
     throw new Error("Payment record not found.");
   }
 
+  // If status is already COMPLETED in DB, trigger post creation/user upgrade if not yet processed and return
+  if (payment.status === PaymentStatus.COMPLETED) {
+    await processSuccessfulPayment(payment.id, payment.userId, payment.metadata || {});
+    return await prisma.payment.findUnique({ where: { id: payment.id } });
+  }
+
+  // If status is still PENDING locally, verify directly with Polar API to see if payment succeeded
+  try {
+    const polarCheckout: any = await polarClient.checkouts.get({ id: checkoutId });
+    if (
+      polarCheckout &&
+      (polarCheckout.status === "succeeded" || polarCheckout.status === "confirmed")
+    ) {
+      const updatedPayment = await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.COMPLETED,
+          amount:
+            polarCheckout.totalAmount !== undefined && polarCheckout.totalAmount !== null
+              ? Number(polarCheckout.totalAmount)
+              : payment.amount,
+        },
+      });
+
+      await processSuccessfulPayment(
+        updatedPayment.id,
+        updatedPayment.userId,
+        updatedPayment.metadata || {}
+      );
+
+      return await prisma.payment.findUnique({ where: { id: payment.id } });
+    } else if (
+      polarCheckout &&
+      (polarCheckout.status === "failed" || polarCheckout.status === "expired")
+    ) {
+      return await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: PaymentStatus.FAILED },
+      });
+    }
+  } catch (err) {
+    console.error("Failed to query Polar API checkout status directly:", err);
+  }
+
   return payment;
+};
+
+const getAdminPaidPostsFromDB = async () => {
+  const payments = await prisma.payment.findMany({
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          userType: true,
+          profilePhoto: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return payments;
+};
+
+const getMyPaymentsFromDB = async (userId: string) => {
+  const payments = await prisma.payment.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+  });
+  return payments;
 };
 
 export const paymentService = {
   createCheckoutSessionInDB,
   handlePolarWebhookInDB,
   getPaymentStatusFromDB,
+  getAdminPaidPostsFromDB,
+  getMyPaymentsFromDB,
 };

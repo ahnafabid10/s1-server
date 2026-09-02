@@ -65,8 +65,33 @@ const getPaymentStatus = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getAdminPaidPosts = catchAsync(async (req: Request, res: Response) => {
+  const result = await paymentService.getAdminPaidPostsFromDB();
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Admin payment records retrieved successfully",
+    data: result,
+  });
+});
+
+const getMyPayments = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id as string;
+  const result = await paymentService.getMyPaymentsFromDB(userId);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "User payment history retrieved successfully",
+    data: result,
+  });
+});
+
 export const paymentController = {
   createCheckout,
   handleWebhook,
   getPaymentStatus,
+  getAdminPaidPosts,
+  getMyPayments,
 };
