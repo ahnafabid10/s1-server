@@ -15,4 +15,9 @@ export default {
     access_expires_in: process.env.JWT_ACCESS_EXPIRES_IN || "1d",
     refresh_expires_in: process.env.JWT_REFRESH_EXPIRES_IN || "30d",
   },
+  polar: {
+    accessToken: process.env.POLAR_ACCESS_TOKEN || "",
+    webhookSecret: process.env.POLAR_WEBHOOK_SECRET || "",
+    server: (process.env.POLAR_SERVER as "sandbox" | "production") || "sandbox",
+  },
 };

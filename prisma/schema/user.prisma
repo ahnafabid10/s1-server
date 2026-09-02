@@ -11,6 +11,7 @@ model User {
 
   posts Post[]
   loves PostLove[]
+  payments Payment[]
 
   @@map("users")
 }

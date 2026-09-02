@@ -14,3 +14,10 @@ enum PostStatus {
   PENDING
   REJECTED
 }
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+

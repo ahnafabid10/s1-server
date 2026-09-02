@@ -5,10 +5,18 @@ import config from "./config";
 import { userRoutes } from "./modules/user/user.route";
 import { authRoutes } from "./modules/auth/auth.route";
 import { postRoutes } from "./modules/post/post.route";
+import { paymentRoutes } from "./modules/payment/payment.route";
 
 const app: Application = express();
 
-app.use(express.json());
+// Parse json and capture raw body buffer for webhook signature verification
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      (req as any).rawBody = buf;
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(
@@ -18,12 +26,13 @@ app.use(
   })
 );
 
-app.get("/", async (req: Request, res: Response) => {
+app.get("/", async ( req: Request, res: Response) => {
   res.send("Hello World!");
 });
 
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/posts", postRoutes);
+app.use("/api/payments", paymentRoutes);
 
 export default app;
