@@ -12,6 +12,9 @@ router.post(
   paymentController.createCheckout
 );
 
+// Get product price from Polar (Public)
+router.get("/price", paymentController.getProductPrice);
+
 // Polar Webhook ingestion endpoint (Public, verified via Cryptographic HMAC signature)
 router.post("/webhook", paymentController.handleWebhook);
 

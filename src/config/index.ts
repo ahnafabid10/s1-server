@@ -19,5 +19,6 @@ export default {
     accessToken: process.env.POLAR_ACCESS_TOKEN || "",
     webhookSecret: process.env.POLAR_WEBHOOK_SECRET || "",
     server: (process.env.POLAR_SERVER as "sandbox" | "production") || "sandbox",
+    productId: process.env.POLAR_PRODUCT_ID || "",
   },
 };

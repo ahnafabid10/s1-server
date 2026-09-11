@@ -291,10 +291,43 @@ const getMyPaymentsFromDB = async (userId: string) => {
   return payments;
 };
 
+const getProductPriceFromPolar = async () => {
+  const productId = config.polar.productId || process.env.POLAR_PRODUCT_ID;
+  if (!productId) {
+    return { price: 1, currency: "USD", formattedPrice: "$1" };
+  }
+
+  try {
+    const product = await polarClient.products.get({ id: productId });
+    const prices = product.prices as any[];
+
+    if (prices && prices.length > 0) {
+      const priceObj = prices[0];
+      const rawAmount =
+        priceObj.presetAmount ?? priceObj.priceAmount ?? priceObj.minimumAmount ?? 100;
+      const price = rawAmount / 100;
+      const currency = (priceObj.priceCurrency || "usd").toUpperCase();
+      const symbol = currency === "USD" ? "$" : currency;
+
+      return {
+        price,
+        currency,
+        formattedPrice: `${symbol}${price}`,
+        minimumPrice: priceObj.minimumAmount ? priceObj.minimumAmount / 100 : price,
+      };
+    }
+  } catch (err) {
+    console.error("Failed to query Polar product price:", err);
+  }
+
+  return { price: 1, currency: "USD", formattedPrice: "$1" };
+};
+
 export const paymentService = {
   createCheckoutSessionInDB,
   handlePolarWebhookInDB,
   getPaymentStatusFromDB,
   getAdminPaidPostsFromDB,
   getMyPaymentsFromDB,
+  getProductPriceFromPolar,
 };

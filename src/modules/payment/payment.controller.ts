@@ -88,10 +88,22 @@ const getMyPayments = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getProductPrice = catchAsync(async (req: Request, res: Response) => {
+  const result = await paymentService.getProductPriceFromPolar();
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Product price retrieved successfully",
+    data: result,
+  });
+});
+
 export const paymentController = {
   createCheckout,
   handleWebhook,
   getPaymentStatus,
   getAdminPaidPosts,
   getMyPayments,
+  getProductPrice,
 };
