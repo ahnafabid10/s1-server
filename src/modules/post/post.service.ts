@@ -6,8 +6,8 @@ const createPostInDB = async (
   userRole: string | undefined,
   payload: ICreatePostInput
 ) => {
-  // Regular user posts always default to PENDING. Admins can optionally set status if provided.
-  const postStatus = userRole === "ADMIN" && payload.status ? payload.status : "PENDING";
+  // Regular user posts default to PENDING. Admins default to PUBLISHED without payment.
+  const postStatus = userRole === "ADMIN" ? (payload.status || "PUBLISHED") : "PENDING";
 
   const post = await prisma.post.create({
     data: {
