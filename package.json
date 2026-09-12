@@ -1,12 +1,12 @@
 {
-  "name": "s1-server",
+  "name": "sharethreado-server",
   "version": "1.0.0",
-  "description": "Modular backend for s1 content management platform",
+  "description": "Modular backend for ShareThreado content management platform",
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "dev": "tsx watch ./src/server.ts",
+    "build": "tsup",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev"
@@ -22,7 +22,8 @@
     "express": "^5.2.1",
     "http-status": "^2.1.0",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.13.3"
+    "pg": "^8.13.3",
+    "tsup": "^8.5.1"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
