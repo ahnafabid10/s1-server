@@ -3,6 +3,11 @@ enum Role {
   ADMIN
 }
 
+enum AccountType {
+  FREE
+  PREMIUM
+}
+
 enum ActiveStatus {
   ACTIVE
   BLOCKED
@@ -14,3 +19,4 @@ enum PostStatus {
   PENDING
   REJECTED
 }
+

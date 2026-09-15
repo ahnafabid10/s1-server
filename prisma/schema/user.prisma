@@ -4,6 +4,7 @@ model User {
   email        String       @unique
   password     String
   role         Role         @default(USER)
+  accountType  AccountType  @default(FREE)
   activeStatus ActiveStatus @default(ACTIVE)
   profilePhoto String?
   createdAt    DateTime     @default(now())

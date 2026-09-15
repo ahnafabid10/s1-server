@@ -21,6 +21,7 @@ export interface IAuthResponse {
     name: string;
     email: string;
     role: Role;
+    accountType?: string;
     profilePhoto?: string | null;
   };
 }
