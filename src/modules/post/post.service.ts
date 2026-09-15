@@ -190,13 +190,6 @@ const getPostStatsFromDB = async () => {
   };
 };
 
-const incrementClicksInDB = async (id: string) => {
-  return await prisma.post.update({
-    where: { id },
-    data: { clicks: { increment: 1 } },
-  });
-};
-
 const toggleLoveInDB = async (postId: string, userId: string) => {
   const post = await prisma.post.findUnique({ where: { id: postId } });
   if (!post) {
@@ -251,6 +244,5 @@ export const postService = {
   updatePostInDB,
   deletePostInDB,
   getPostStatsFromDB,
-  incrementClicksInDB,
   toggleLoveInDB,
 };

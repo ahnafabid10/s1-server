@@ -2,7 +2,6 @@ model Post {
   id        String     @id @default(uuid())
   content    String     @db.Text
   status     PostStatus @default(PENDING)
-  clicks     Int        @default(0)
   loves      Int        @default(0)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
