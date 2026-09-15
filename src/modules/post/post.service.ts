@@ -12,7 +12,6 @@ const createPostInDB = async (
   const post = await prisma.post.create({
     data: {
       content: payload.content,
-      websiteUrl: payload.websiteUrl || null,
       status: postStatus,
       authorId,
     },

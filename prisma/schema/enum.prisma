@@ -15,11 +15,7 @@ enum PostStatus {
   REJECTED
 }
 
-enum PaymentStatus {
-  PENDING
-  COMPLETED
-  FAILED
-}
+
 
 enum UserType {
   REGULAR
