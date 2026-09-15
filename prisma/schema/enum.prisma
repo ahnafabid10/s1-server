@@ -14,11 +14,3 @@ enum PostStatus {
   PENDING
   REJECTED
 }
-
-
-
-enum UserType {
-  REGULAR
-  PREMIUM
-}
-
